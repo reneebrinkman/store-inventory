@@ -7,7 +7,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    Date
+    DateTime
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -16,7 +16,7 @@ import datetime
 
 
 # initialize sqlite database
-engine = create_engine('sqlite:///inventory.db', echo=True)
+engine = create_engine('sqlite:///inventory.db', echo=False)
 Session = sessionmaker(bind=engine)
 session = Session()
 Base = declarative_base()
@@ -29,7 +29,7 @@ class Product(Base):
     product_name = Column('Name', String)
     product_quantity = Column('Quantity', Integer)
     product_price = Column('Price', Integer)
-    date_updated = Column('Last Updated', Date)
+    date_updated = Column('Last Updated', DateTime)
 
 
 def clean_price(price_str):
@@ -53,7 +53,21 @@ def clean_date(date_str):
     day = int(date_split[1])
     year = int(date_split[2])
 
-    return datetime.date(year, month, day)
+    return datetime.datetime(year, month, day)
+
+
+def check_duplicates():
+    data = session.query(Product).all()
+    for product in data:
+        product_duplicate = session.query(Product).filter(
+            Product.product_id!=product.product_id).filter(
+                Product.product_name==product.product_name).one_or_none()
+        if product_duplicate is not None:
+            if product.date_updated > product_duplicate.date_updated:
+                session.delete(product_duplicate)
+            elif product.date_updated < product_duplicate.date_updated:
+                session.delete(product)
+    session.commit()
 
 
 def add_csv():
@@ -61,7 +75,6 @@ def add_csv():
         data = csv.reader(csvfile)
         for count, row in enumerate(data):
             if count > 0:
-                # ensure duplicates do not get added
                 name = row[0]
                 price = clean_price(row[1])
                 quantity = int(row[2])
@@ -74,6 +87,7 @@ def add_csv():
                     date_updated=date_updated)
                 session.add(new_product)
         session.commit()
+    check_duplicates()
 
 
 def view_product(product_id):
@@ -84,7 +98,7 @@ def view_product(product_id):
     \r{product.product_name}
     \r${product.product_price / 100}
     \rIn Stock: {product.product_quantity}
-    \rLast Updated: {product.date_updated}''')
+    \rLast Updated: {product.date_updated.strftime("%B %d, %Y")}''')
 
 
 def add_product():
