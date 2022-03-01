@@ -11,6 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 import csv
 import datetime
 
@@ -109,6 +110,10 @@ def backup_db():
     pass
 
 
+def format_ids(id_list):
+    pass
+
+
 def check_id(choice, options):
     try:
         product_id = int(choice)
@@ -119,7 +124,7 @@ def check_id(choice, options):
         if product_id in options:
             return product_id
         else:
-            input(f'Your choices are {options}. Press enter to try again.')
+            input(f'\nInvalid ID. Your choices are {options}.\nPress enter to try again.')
             return
 
 
@@ -170,5 +175,8 @@ def app():
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
-    #add_csv()
+
+    if session.query(Product).all() == []:
+        add_csv()
+
     app()
