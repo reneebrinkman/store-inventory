@@ -24,6 +24,10 @@ Base = declarative_base()
 
 
 class Product(Base):
+    """class Product(Base)
+
+    Product model class
+    """
     __tablename__ = 'products'
 
     product_id = Column(Integer, primary_key=True)
@@ -58,6 +62,12 @@ def clean_date(date_str):
 
 
 def check_duplicates():
+    """check_duplicates()
+
+    Check every product in the database and remove duplicates with the same
+    name, regardless of the values of other fields. Always keeps the more
+    recently updated product.
+    """
     data = session.query(Product).all()
     for product in data:
         product_duplicate = session.query(Product).filter(
@@ -72,6 +82,11 @@ def check_duplicates():
 
 
 def add_csv():
+    """add_csv()
+
+    Imports records from a csv file, cleans the data, and adds them to them
+    database.
+    """
     with open('inventory.csv') as csvfile:
         data = csv.reader(csvfile)
         for count, row in enumerate(data):
@@ -92,6 +107,11 @@ def add_csv():
 
 
 def view_product(product_id):
+    """view_product(product_id)
+
+    Queries the database for details about a specific product and prints it to
+    the user in a friendly format.
+    """
     product = session.query(Product).filter(Product.product_id==product_id).first()
 
     print(f'''
@@ -103,18 +123,95 @@ def view_product(product_id):
 
 
 def add_product():
-    pass
+    """add_product()
+
+    Prompts the user for information about a product. If the product already
+    exists, updates the product with the given information, if the product
+    doesn't exist, creates a new one.
+    """
+    product_name = input("\nPlease enter the product's name: ")
+
+    quantity = input('Please enter the quantity: ')
+    quantity_invalid = True
+    while quantity_invalid:
+        try:
+            product_quantity = int(quantity)
+        except ValueError:
+            print('Invalid quantity entry. Must be a number. Please try again.')
+            quantity = input("Please enter the quantity: ")
+        else:
+            quantity_invalid = False
+
+    price = input("Please enter the product's price: ")
+    price_invalid = True
+    while price_invalid:
+        try:
+            product_price = clean_price(price)
+        except ValueError:
+            print('Invalid price entry. Must be a number. Please try again.')
+            price = input("Please enter the product's price: ")
+        else:
+            price_invalid = False
+
+    date_updated = datetime.datetime.now()
+
+    duplicate_product = session.query(Product).filter(Product.product_name==product_name).one_or_none()
+    if duplicate_product == None:
+        new_product = Product(
+            product_name=product_name,
+            product_quantity=product_quantity,
+            product_price=product_price,
+            date_updated=date_updated)
+        session.add(new_product)
+        print(f'\n{product_name} has been added to the inventory database!')
+    else:
+        # update existing product
+        duplicate_product.product_quantity = product_quantity
+        duplicate_product.product_price = product_price
+        duplicate_product.date_updated = date_updated
+        print(f'\n{product_name} has been updated in the inventory database!')
+
+    session.commit()
 
 
 def backup_db():
-    pass
+    """backup_db()
 
+    Backs up the contents of the database to a csv file.
+    """
+    header_labels = [
+        'product_name',
+        'product_price',
+        'product_quantity',
+        'date_updated'
+    ]
 
-def format_ids(id_list):
-    pass
+    data = session.query(Product).all()
+
+    with open('backup.csv', 'w') as csvfile:
+        writer = csv.writer(csvfile)
+
+        writer.writerow(header_labels)
+
+        for product in data:
+            row = [
+                product.product_name,
+                f'${product.product_price / 100}',
+                product.product_quantity,
+                product.date_updated.strftime('%m/%d/%Y')
+            ]
+
+            writer.writerow(row)
+
+    print('\nDatabase backup created successfully!')
 
 
 def check_id(choice, options):
+    """check_id(choice, options)
+
+    Checks user input to make sure they entered a valid product id number that
+    exists in the database.
+    """
     try:
         product_id = int(choice)
     except ValueError:
@@ -129,6 +226,10 @@ def check_id(choice, options):
 
 
 def search_id():
+    """search_id()
+
+    Shows a list of product id numbers and asks the user to enter one of them.
+    """
     id_options = []
     for product in session.query(Product):
         id_options.append(product.product_id)
@@ -142,6 +243,11 @@ def search_id():
 
 
 def menu():
+    """menu()
+
+    Displays the main menu and asks the user for a menu selection. Also checks
+    whether the user's selection is valid
+    """
     while True:
         print('''
             \nSTORE INVENTORY
@@ -159,6 +265,11 @@ def menu():
 
 
 def app():
+    """app()
+
+    Main app logic; handles each possible menu selection and calls the right
+    function that will handle the dirty work
+    """
     while True:
         choice = menu()
         if choice == 'v':
@@ -166,9 +277,11 @@ def app():
             view_product(product_id)
             input('\nPress enter to continue.')
         elif choice == 'a':
-            pass
+            add_product()
+            input('\nPress enter to continue.')
         elif choice == 'b':
-            pass
+            backup_db()
+            input('\nPress enter to continue.')
         else:
             return
 
